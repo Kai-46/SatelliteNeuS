@@ -191,6 +191,7 @@ class NeuSRenderer:
         return z_vals, sdf
 
     def render_core(self,
+                    latent_code,
                     rays_o,
                     rays_d,
                     z_vals,
@@ -221,7 +222,7 @@ class NeuSRenderer:
         feature_vector = sdf_nn_output[:, 1:]
 
         gradients = sdf_network.gradient(pts).squeeze()
-        sampled_color = color_network(pts, gradients, dirs, feature_vector).reshape(batch_size, n_samples, 3)
+        sampled_color = color_network(latent_code, pts, gradients, dirs, feature_vector).reshape(batch_size, n_samples, 3)
 
         inv_s = deviation_network(torch.zeros([1, 3]))[:, :1].clip(1e-6, 1e6)           # Single parameter
         inv_s = inv_s.expand(batch_size * n_samples, 1)
@@ -282,7 +283,7 @@ class NeuSRenderer:
             'inside_sphere': inside_sphere
         }
 
-    def render(self, rays_o, rays_d, near, far, perturb_overwrite=-1, background_rgb=None, cos_anneal_ratio=0.0):
+    def render(self, latent_code, rays_o, rays_d, near, far, perturb_overwrite=-1, background_rgb=None, cos_anneal_ratio=0.0):
         batch_size = len(rays_o)
         sample_dist = 2.0 / self.n_samples   # Assuming the region of interest is a unit sphere
         z_vals = torch.linspace(0.0, 1.0, self.n_samples)
@@ -346,7 +347,8 @@ class NeuSRenderer:
             background_alpha = ret_outside['alpha']
 
         # Render core
-        ret_fine = self.render_core(rays_o,
+        ret_fine = self.render_core(latent_code,
+                                    rays_o,
                                     rays_d,
                                     z_vals,
                                     sample_dist,
